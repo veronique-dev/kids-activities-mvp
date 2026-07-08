@@ -25,10 +25,10 @@ public class Activity {
     @Column(nullable = false, length = 500)
     private String description;
 
-    @Column(nullable = false, length = 5000)
+    @Column(length = 5000)
     private String details;
 
-    @Column(nullable = false, length = 2000)
+    @Column(length = 2000)
     private String prerequisites;
 
     @Column(nullable = false)

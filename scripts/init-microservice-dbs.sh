@@ -10,5 +10,11 @@ for db in auth_db activity_db booking_db payment_db; do
     || { docker exec "$CONTAINER" psql -U kids -d postgres -c "CREATE DATABASE $db;"; echo "✓ $db créée"; }
 done
 
+if [ -f infra/postgres/migrate-activity-content.sql ]; then
+  echo ""
+  echo "Migration activity_db (details / prerequisites)…"
+  docker exec -i "$CONTAINER" psql -U kids -d postgres < infra/postgres/migrate-activity-content.sql
+fi
+
 echo ""
 echo "Redémarrez les services : docker compose restart auth-service activity-service booking-service payment-service gateway"
