@@ -14,6 +14,7 @@ Toute la documentation produit, technique et QA est centralisée dans le dossier
 | [Plan de test](docs/04-plan-de-test.md) | Matrice tests ↔ user stories |
 | [Configuration](docs/05-comptes-et-configuration.md) | Comptes démo, variables d'environnement |
 | [API & Postman](docs/06-api-et-postman.md) | Endpoints et collection Postman |
+| [Paiements](docs/07-paiements.md) | Flux de paiement et mode simulation |
 
 ### Fichiers sources (JSON / CSV)
 

@@ -18,6 +18,7 @@ Bienvenue dans la documentation du projet. Tous les documents sont en **Markdown
 4. **[Plan de test](04-plan-de-test.md)** — unitaires, intégration, E2E, commandes Maven
 5. **[Comptes & configuration](05-comptes-et-configuration.md)** — identifiants démo, ports, secrets
 6. **[API & Postman](06-api-et-postman.md)** — routes gateway, collection Postman
+7. **[Paiements](07-paiements.md)** — flux de paiement, API, mode simulation
 
 ## Fichiers produit (sources)
 

@@ -139,6 +139,11 @@ a {
   color: var(--danger);
 }
 
+.badge-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
 .badge-muted {
   background: #f3f4f6;
   color: var(--muted);
@@ -221,6 +226,14 @@ a {
   margin-bottom: 1rem;
 }
 
+.success-banner {
+  background: #dcfce7;
+  color: var(--success);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -285,6 +298,36 @@ a {
   padding: 1.5rem;
   width: min(480px, 100%);
   box-shadow: var(--shadow);
+}
+
+.payment-summary {
+  background: #eff6ff;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+
+.payment-summary-prominent {
+  background: #fff7ed;
+  border: 2px solid var(--accent);
+  color: #9a3412;
+  font-size: 1rem;
+}
+
+.payment-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.payment-step p {
+  margin: 0.5rem 0;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  margin-top: 0.5rem;
 }
 
 .modal-actions {

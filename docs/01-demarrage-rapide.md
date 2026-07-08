@@ -29,6 +29,13 @@ Arrêter la stack :
 docker compose down
 ```
 
+> **Migration depuis l'ancien monolithe** : si PostgreSQL tournait déjà avec l'ancienne stack (`backend`), créez les bases microservices puis redémarrez :
+>
+> ```bash
+> ./scripts/init-microservice-dbs.sh
+> docker compose restart auth-service activity-service booking-service payment-service gateway
+> ```
+
 ## Mode local (sans Docker pour le backend)
 
 1. Démarrer PostgreSQL et créer les bases `auth_db`, `activity_db`, `booking_db` (voir `infra/postgres/init-databases.sql`).

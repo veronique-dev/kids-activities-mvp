@@ -103,6 +103,27 @@ services:
       mailpit:
         condition: service_started
 
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/payment_db
+      SPRING_DATASOURCE_USERNAME: kids
+      SPRING_DATASOURCE_PASSWORD: kids123
+      JWT_SECRET: change-me-in-production-use-a-long-random-secret-key-at-least-256-bits
+      INTERNAL_API_KEY: internal-dev-key
+      BOOKING_SERVICE_URL: http://booking-service:8083
+      STRIPE_ENABLED: ${STRIPE_ENABLED:-false}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:5173}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      booking-service:
+        condition: service_started
+
   gateway:
     build:
       context: .
@@ -113,12 +134,14 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8081
       ACTIVITY_SERVICE_URL: http://activity-service:8082
       BOOKING_SERVICE_URL: http://booking-service:8083
+      PAYMENT_SERVICE_URL: http://payment-service:8085
       INTERNAL_API_KEY: internal-dev-key
       JWT_SECRET: change-me-in-production-use-a-long-random-secret-key-at-least-256-bits
     depends_on:
       - auth-service
       - activity-service
       - booking-service
+      - payment-service
 
   frontend:
     build: ./frontend

@@ -82,7 +82,7 @@ class BookingValidationE2ETest {
                         "startDateTime", LocalDateTime.now().plusDays(20).withNano(0).toString(),
                         "location", "Nantes",
                         "maxCapacity", 2,
-                        "price", 10.00,
+                        "price", 0,
                         "active", true
                 ))
                 .when()
@@ -129,7 +129,7 @@ class BookingValidationE2ETest {
                         "startDateTime", LocalDateTime.now().plusDays(20).withNano(0).toString(),
                         "location", "Nantes",
                         "maxCapacity", 1,
-                        "price", 10.00,
+                        "price", 0,
                         "active", true
                 ))
                 .when()

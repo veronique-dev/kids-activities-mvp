@@ -179,7 +179,7 @@ class MvpAcceptanceTest {
 
     @Test
     @Order(7)
-    @DisplayName("US-07: Given parent When book Then CONFIRMED")
+    @DisplayName("US-07: Given parent When book Then PENDING_PAYMENT then pay Then CONFIRMED")
     void us07_createBooking() {
         bookingId = given()
                 .baseUri(baseUrl)
@@ -194,10 +194,50 @@ class MvpAcceptanceTest {
                 .post("/api/bookings")
                 .then()
                 .statusCode(201)
-                .body("status", equalTo("CONFIRMED"))
+                .body("status", equalTo("PENDING_PAYMENT"))
+                .body("paymentRequired", equalTo(true))
                 .body("childName", equalTo("Lucas"))
                 .extract()
                 .path("id");
+
+        Long paymentId = given()
+                .baseUri(baseUrl)
+                .header("Authorization", "Bearer " + parentToken)
+                .contentType(ContentType.JSON)
+                .body(Map.of("bookingId", bookingId))
+                .when()
+                .post("/api/payments/checkout")
+                .then()
+                .statusCode(200)
+                .body("provider", equalTo("MOCK"))
+                .extract()
+                .path("paymentId");
+
+        given()
+                .baseUri(baseUrl)
+                .header("Authorization", "Bearer " + parentToken)
+                .when()
+                .post("/api/payments/{id}/complete-mock", paymentId)
+                .then()
+                .statusCode(200)
+                .body("status", equalTo("COMPLETED"));
+
+        List<Map<String, Object>> bookings = given()
+                .baseUri(baseUrl)
+                .header("Authorization", "Bearer " + parentToken)
+                .when()
+                .get("/api/bookings")
+                .then()
+                .statusCode(200)
+                .extract()
+                .jsonPath()
+                .getList("$");
+
+        assertThat(bookings.stream()
+                .filter(b -> bookingId.equals(((Number) b.get("id")).longValue()))
+                .findFirst()
+                .orElseThrow()
+                .get("status")).isEqualTo("CONFIRMED");
     }
 
     @Test

@@ -31,6 +31,7 @@ Le MVP est découpé en **microservices** Spring Boot 3.3, orchestrés par Docke
 | `services/activity-service/` | CRUD activités, gestion des places |
 | `services/booking-service/` | Réservations, annulations, saga (réserve/libère via HTTP) |
 | `services/notification-service/` | E-mails async (événements RabbitMQ → Mailpit/SMTP) |
+| `services/payment-service/` | Paiements de réservation (mock dev, extensible Stripe) |
 | `services/gateway/` | Spring Cloud Gateway + BFF admin (`/api/admin/**`) |
 | `e2e-tests/` | Tests d'acceptation REST Assured via gateway |
 | `backend/` | Monolithe legacy (conservé, non utilisé par Docker) |
@@ -43,6 +44,7 @@ Le MVP est découpé en **microservices** Spring Boot 3.3, orchestrés par Docke
 | `/api/users/**` | auth-service |
 | `/api/activities/**` | activity-service |
 | `/api/bookings/**` | booking-service |
+| `/api/payments/**` | payment-service |
 | `/api/admin/**` | gateway (agrégation BFF) |
 
 ## Événements asynchrones (RabbitMQ)

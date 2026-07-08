@@ -4,6 +4,7 @@ import com.kidsactivities.common.model.BookingStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -35,6 +36,12 @@ public class Booking {
     @Column(nullable = false)
     private BookingStatus status;
 
+    @Column(precision = 10, scale = 2)
+    private BigDecimal amount;
+
+    @Column(length = 3)
+    private String currency;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -43,6 +50,9 @@ public class Booking {
         createdAt = LocalDateTime.now();
         if (status == null) {
             status = BookingStatus.CONFIRMED;
+        }
+        if (currency == null) {
+            currency = "EUR";
         }
     }
 }

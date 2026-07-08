@@ -7,6 +7,7 @@ import com.kidsactivities.common.model.BookingStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -19,6 +20,9 @@ public class BookingResponse {
     private String childName;
     private Integer childAge;
     private BookingStatus status;
+    private BigDecimal amount;
+    private String currency;
+    private boolean paymentRequired;
     private Long userId;
     private String userEmail;
     private LocalDateTime createdAt;
@@ -32,6 +36,9 @@ public class BookingResponse {
                 .childName(booking.getChildName())
                 .childAge(booking.getChildAge())
                 .status(booking.getStatus())
+                .amount(booking.getAmount())
+                .currency(booking.getCurrency())
+                .paymentRequired(booking.getStatus() == BookingStatus.PENDING_PAYMENT)
                 .userId(booking.getUserId())
                 .userEmail(user.getEmail())
                 .createdAt(booking.getCreatedAt())

@@ -18,6 +18,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,14 +48,15 @@ class BookingServiceTest {
     private BookingService bookingService;
 
     @Test
-    void createBooking_shouldReserveSpotAndPublishEvent() {
+    void createBooking_shouldCreatePendingPaymentForPaidActivity() {
         BookingRequest request = buildRequest();
         ActivitySnapshot activity = buildActivitySnapshot();
         UserSnapshot user = buildUserSnapshot();
 
-        when(bookingRepository.existsByUserIdAndActivityIdAndStatus(1L, 1L, BookingStatus.CONFIRMED))
+        when(bookingRepository.existsByUserIdAndActivityIdAndStatusIn(
+                eq(1L), eq(1L), eq(List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING_PAYMENT))))
                 .thenReturn(false);
-        when(activityServiceClient.reserveSpot(1L)).thenReturn(activity);
+        when(activityServiceClient.getActivity(1L)).thenReturn(activity);
         when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
             Booking booking = invocation.getArgument(0);
             booking.setId(10L);
@@ -65,31 +67,89 @@ class BookingServiceTest {
         BookingResponse response = bookingService.createBooking(1L, request);
 
         assertThat(response.getChildName()).isEqualTo("Lucas");
+        assertThat(response.getStatus()).isEqualTo(BookingStatus.PENDING_PAYMENT);
+        assertThat(response.isPaymentRequired()).isTrue();
+        assertThat(response.getAmount()).isEqualByComparingTo("25.00");
+        verify(activityServiceClient, never()).reserveSpot(1L);
+        verify(bookingEventPublisher, never()).publishBookingConfirmed(any(), any(), any());
+    }
+
+    @Test
+    void createBooking_shouldConfirmImmediatelyWhenFree() {
+        BookingRequest request = buildRequest();
+        ActivitySnapshot activity = buildActivitySnapshot();
+        activity.setPrice(BigDecimal.ZERO);
+        UserSnapshot user = buildUserSnapshot();
+
+        when(bookingRepository.existsByUserIdAndActivityIdAndStatusIn(
+                eq(1L), eq(1L), eq(List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING_PAYMENT))))
+                .thenReturn(false);
+        when(activityServiceClient.getActivity(1L)).thenReturn(activity);
+        when(activityServiceClient.reserveSpot(1L)).thenReturn(activity);
+        when(bookingRepository.save(any(Booking.class))).thenAnswer(invocation -> {
+            Booking booking = invocation.getArgument(0);
+            booking.setId(10L);
+            return booking;
+        });
+        when(authServiceClient.getUser(1L)).thenReturn(user);
+
+        BookingResponse response = bookingService.createBooking(1L, request);
+
         assertThat(response.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
         verify(bookingEventPublisher).publishBookingConfirmed(any(Booking.class), eq(activity), eq(user));
+    }
+
+    @Test
+    void confirmBooking_shouldReserveSpotAndPublishEvent() {
+        Booking booking = Booking.builder()
+                .id(10L)
+                .userId(1L)
+                .activityId(1L)
+                .childName("Lucas")
+                .childAge(8)
+                .status(BookingStatus.PENDING_PAYMENT)
+                .amount(new BigDecimal("25.00"))
+                .currency("EUR")
+                .build();
+        ActivitySnapshot activity = buildActivitySnapshot();
+        UserSnapshot user = buildUserSnapshot();
+
+        when(bookingRepository.findById(10L)).thenReturn(Optional.of(booking));
+        when(activityServiceClient.reserveSpot(1L)).thenReturn(activity);
+        when(bookingRepository.save(booking)).thenReturn(booking);
+        when(authServiceClient.getUser(1L)).thenReturn(user);
+
+        BookingResponse response = bookingService.confirmBooking(10L);
+
+        assertThat(response.getStatus()).isEqualTo(BookingStatus.CONFIRMED);
+        verify(bookingEventPublisher).publishBookingConfirmed(booking, activity, user);
     }
 
     @Test
     void createBooking_shouldRejectDuplicateBeforeReserve() {
         BookingRequest request = buildRequest();
 
-        when(bookingRepository.existsByUserIdAndActivityIdAndStatus(1L, 1L, BookingStatus.CONFIRMED))
+        when(bookingRepository.existsByUserIdAndActivityIdAndStatusIn(
+                eq(1L), eq(1L), eq(List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING_PAYMENT))))
                 .thenReturn(true);
 
         assertThatThrownBy(() -> bookingService.createBooking(1L, request))
                 .isInstanceOf(BadRequestException.class)
-                .hasMessage("Vous avez déjà une réservation confirmée pour cette activité");
+                .hasMessage("Vous avez déjà une réservation en cours pour cette activité");
 
-        verify(activityServiceClient, never()).reserveSpot(1L);
+        verify(activityServiceClient, never()).getActivity(1L);
     }
 
     @Test
     void createBooking_shouldReleaseSpotWhenPersistenceFails() {
         BookingRequest request = buildRequest();
         ActivitySnapshot activity = buildActivitySnapshot();
+        activity.setPrice(BigDecimal.ZERO);
 
-        when(bookingRepository.existsByUserIdAndActivityIdAndStatus(1L, 1L, BookingStatus.CONFIRMED))
+        when(bookingRepository.existsByUserIdAndActivityIdAndStatusIn(
+                eq(1L), eq(1L), eq(List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING_PAYMENT))))
                 .thenReturn(false);
+        when(activityServiceClient.getActivity(1L)).thenReturn(activity);
         when(activityServiceClient.reserveSpot(1L)).thenReturn(activity);
         when(bookingRepository.save(any(Booking.class))).thenThrow(new RuntimeException("DB error"));
 
@@ -98,20 +158,6 @@ class BookingServiceTest {
                 .hasMessage("DB error");
 
         verify(activityServiceClient).releaseSpot(1L);
-    }
-
-    @Test
-    void createBooking_shouldMapNoSpotsConflictToBadRequest() {
-        BookingRequest request = buildRequest();
-
-        when(bookingRepository.existsByUserIdAndActivityIdAndStatus(1L, 1L, BookingStatus.CONFIRMED))
-                .thenReturn(false);
-        when(activityServiceClient.reserveSpot(1L))
-                .thenThrow(new BadRequestException("Plus de places disponibles pour cette activité"));
-
-        assertThatThrownBy(() -> bookingService.createBooking(1L, request))
-                .isInstanceOf(BadRequestException.class)
-                .hasMessage("Plus de places disponibles pour cette activité");
     }
 
     @Test
@@ -136,6 +182,32 @@ class BookingServiceTest {
 
         assertThat(response.getStatus()).isEqualTo(BookingStatus.CANCELLED);
         verify(bookingEventPublisher).publishBookingCancelled(booking, activity, user);
+    }
+
+    @Test
+    void cancelBooking_shouldNotReleaseSpotWhenPendingPayment() {
+        Booking booking = Booking.builder()
+                .id(10L)
+                .userId(1L)
+                .activityId(1L)
+                .childName("Lucas")
+                .childAge(8)
+                .status(BookingStatus.PENDING_PAYMENT)
+                .amount(new BigDecimal("25.00"))
+                .build();
+        ActivitySnapshot activity = buildActivitySnapshot();
+        UserSnapshot user = buildUserSnapshot();
+
+        when(bookingRepository.findById(10L)).thenReturn(Optional.of(booking));
+        when(bookingRepository.save(booking)).thenReturn(booking);
+        when(activityServiceClient.getActivity(1L)).thenReturn(activity);
+        when(authServiceClient.getUser(1L)).thenReturn(user);
+
+        BookingResponse response = bookingService.cancelBooking(10L, 1L, false);
+
+        assertThat(response.getStatus()).isEqualTo(BookingStatus.CANCELLED);
+        verify(activityServiceClient, never()).releaseSpot(1L);
+        verify(bookingEventPublisher, never()).publishBookingCancelled(any(), any(), any());
     }
 
     @Test

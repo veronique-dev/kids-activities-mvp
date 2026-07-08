@@ -47,6 +47,13 @@ export const api = {
   getBookings: () => request('/bookings'),
   createBooking: (data) => request('/bookings', { method: 'POST', body: JSON.stringify(data) }),
   cancelBooking: (id) => request(`/bookings/${id}`, { method: 'DELETE' }),
+  createPaymentCheckout: (bookingId) =>
+    request('/payments/checkout', { method: 'POST', body: JSON.stringify({ bookingId }) }),
+  completeMockPayment: (paymentId) =>
+    request(`/payments/${paymentId}/complete-mock`, { method: 'POST' }),
+  verifyStripeSession: (sessionId) =>
+    request(`/payments/verify-session?sessionId=${encodeURIComponent(sessionId)}`, { method: 'POST' }),
+  getPayment: (id) => request(`/payments/${id}`),
   getDashboard: () => request('/admin/dashboard'),
   getUsers: () => request('/users'),
 };

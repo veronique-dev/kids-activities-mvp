@@ -2,8 +2,15 @@ FROM maven:3.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
 COPY common/pom.xml common/pom.xml
-COPY common/src common/src
+COPY e2e-tests/pom.xml e2e-tests/pom.xml
+COPY services/auth-service/pom.xml services/auth-service/pom.xml
 COPY services/activity-service/pom.xml services/activity-service/pom.xml
+COPY services/booking-service/pom.xml services/booking-service/pom.xml
+COPY services/notification-service/pom.xml services/notification-service/pom.xml
+COPY services/payment-service/pom.xml services/payment-service/pom.xml
+COPY services/gateway/pom.xml services/gateway/pom.xml
+RUN mvn -N -q install
+COPY common/src common/src
 COPY services/activity-service/src services/activity-service/src
 RUN mvn -q -pl services/activity-service -am -DskipTests package
 
