@@ -65,6 +65,13 @@ export default function BookingModal({ activity, onClose, onSuccess }) {
 
         {step === 'form' && (
           <form onSubmit={handleSubmit}>
+            <p className="modal-summary">{activity.description}</p>
+            {activity.prerequisites && (
+              <div className="prerequisites-box">
+                <strong>Prérequis à vérifier</strong>
+                <p>{activity.prerequisites}</p>
+              </div>
+            )}
             <div className="form-group">
               <label htmlFor="childName">Prénom de l'enfant</label>
               <input

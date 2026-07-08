@@ -7,4 +7,8 @@ import java.util.List;
 
 public interface ActivityRepository extends JpaRepository<Activity, Long> {
     List<Activity> findByActiveTrueOrderByStartDateTimeAsc();
+
+    List<Activity> findByActiveTrueAndCatalogIdOrderByStartDateTimeAsc(Long catalogId);
+
+    long countByCatalogIdAndActiveTrue(Long catalogId);
 }

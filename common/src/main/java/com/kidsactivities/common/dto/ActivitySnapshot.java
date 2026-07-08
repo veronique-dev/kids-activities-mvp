@@ -20,4 +20,9 @@ public class ActivitySnapshot {
     private BigDecimal price;
     private boolean active;
     private int availableSpots;
+    private Long catalogId;
+    private String catalogName;
+    private String catalogEmoji;
+    private LocalDateTime registrationDeadline;
+    private boolean bookingOpen;
 }

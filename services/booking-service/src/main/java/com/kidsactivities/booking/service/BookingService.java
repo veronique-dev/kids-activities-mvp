@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -74,6 +75,8 @@ public class BookingService {
         }
 
         ActivitySnapshot activity = activityServiceClient.getActivity(request.getActivityId());
+
+        assertBookingOpen(activity);
 
         if (isFreeActivity(activity)) {
             return confirmPaidBooking(userId, request, activity);
@@ -176,6 +179,17 @@ public class BookingService {
 
     private boolean isFreeActivity(ActivitySnapshot activity) {
         return activity.getPrice() == null || activity.getPrice().compareTo(BigDecimal.ZERO) <= 0;
+    }
+
+    private void assertBookingOpen(ActivitySnapshot activity) {
+        if (activity.isBookingOpen()) {
+            return;
+        }
+        if (activity.getRegistrationDeadline() != null
+                && !LocalDateTime.now().isBefore(activity.getRegistrationDeadline())) {
+            throw new BadRequestException("Les inscriptions sont closes pour cette activité");
+        }
+        throw new BadRequestException("Cette activité n'est plus disponible à la réservation");
     }
 
     private BookingResponse toEnrichedResponse(Booking booking) {

@@ -11,16 +11,21 @@ function formatDate(value) {
 const emptyActivityForm = {
   title: '',
   description: '',
+  details: '',
+  prerequisites: '',
   startDateTime: '',
+  registrationDeadline: '',
   location: '',
   maxCapacity: 10,
   price: 0,
+  catalogId: '',
   active: true,
 };
 
 export default function AdminPage() {
   const [dashboard, setDashboard] = useState(null);
   const [activities, setActivities] = useState([]);
+  const [catalogs, setCatalogs] = useState([]);
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState(emptyActivityForm);
   const [editingId, setEditingId] = useState(null);
@@ -30,13 +35,15 @@ export default function AdminPage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [dashboardData, activitiesData, usersData] = await Promise.all([
+      const [dashboardData, activitiesData, catalogsData, usersData] = await Promise.all([
         api.getDashboard(),
         api.getAllActivities(),
+        api.getAllCatalogs(),
         api.getUsers(),
       ]);
       setDashboard(dashboardData);
       setActivities(activitiesData);
+      setCatalogs(catalogsData);
       setUsers(usersData);
     } catch (err) {
       setError(err.message);
@@ -54,10 +61,14 @@ export default function AdminPage() {
     setForm({
       title: activity.title,
       description: activity.description,
+      details: activity.details || '',
+      prerequisites: activity.prerequisites || '',
       startDateTime: activity.startDateTime.slice(0, 16),
+      registrationDeadline: activity.registrationDeadline.slice(0, 16),
       location: activity.location,
       maxCapacity: activity.maxCapacity,
       price: activity.price,
+      catalogId: activity.catalogId,
       active: activity.active,
     });
   }
@@ -69,6 +80,7 @@ export default function AdminPage() {
       ...form,
       maxCapacity: Number(form.maxCapacity),
       price: Number(form.price),
+      catalogId: Number(form.catalogId),
       active: Boolean(form.active),
     };
 
@@ -141,6 +153,30 @@ export default function AdminPage() {
               />
             </div>
             <div className="form-group">
+              <label>Date limite d'inscription</label>
+              <input
+                type="datetime-local"
+                value={form.registrationDeadline}
+                onChange={(e) => setForm({ ...form, registrationDeadline: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Catalogue</label>
+              <select
+                value={form.catalogId}
+                onChange={(e) => setForm({ ...form, catalogId: e.target.value })}
+                required
+              >
+                <option value="">Choisir un catalogue</option>
+                {catalogs.map((catalog) => (
+                  <option key={catalog.id} value={catalog.id}>
+                    {catalog.emoji} {catalog.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form-group">
               <label>Capacité</label>
               <input
                 type="number"
@@ -170,11 +206,34 @@ export default function AdminPage() {
             </div>
           </div>
           <div className="form-group">
-            <label>Description</label>
+            <label>Résumé (carte)</label>
             <textarea
-              rows="3"
+              rows="2"
+              maxLength={500}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Détails & programme</label>
+            <textarea
+              rows="6"
+              maxLength={5000}
+              value={form.details}
+              onChange={(e) => setForm({ ...form, details: e.target.value })}
+              placeholder="Déroulement, horaires, matériel fourni…"
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Prérequis</label>
+            <textarea
+              rows="4"
+              maxLength={2000}
+              value={form.prerequisites}
+              onChange={(e) => setForm({ ...form, prerequisites: e.target.value })}
+              placeholder="Âge, tenue, documents, niveau requis…"
               required
             />
           </div>
@@ -201,7 +260,9 @@ export default function AdminPage() {
           <thead>
             <tr>
               <th>Titre</th>
+              <th>Catalogue</th>
               <th>Date</th>
+              <th>Limite inscription</th>
               <th>Places</th>
               <th>Prix</th>
               <th>Actions</th>
@@ -211,7 +272,9 @@ export default function AdminPage() {
             {activities.map((activity) => (
               <tr key={activity.id}>
                 <td>{activity.title}</td>
+                <td>{activity.catalogEmoji} {activity.catalogName}</td>
                 <td>{formatDate(activity.startDateTime)}</td>
+                <td>{formatDate(activity.registrationDeadline)}</td>
                 <td>{activity.availableSpots}/{activity.maxCapacity}</td>
                 <td>{activity.price} €</td>
                 <td>

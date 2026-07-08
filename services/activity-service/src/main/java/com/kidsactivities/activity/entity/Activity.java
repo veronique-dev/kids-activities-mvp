@@ -22,8 +22,14 @@ public class Activity {
     @Column(nullable = false)
     private String title;
 
-    @Column(nullable = false, length = 2000)
+    @Column(nullable = false, length = 500)
     private String description;
+
+    @Column(nullable = false, length = 5000)
+    private String details;
+
+    @Column(nullable = false, length = 2000)
+    private String prerequisites;
 
     @Column(nullable = false)
     private LocalDateTime startDateTime;
@@ -42,6 +48,13 @@ public class Activity {
 
     @Column(nullable = false)
     private boolean active;
+
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "catalog_id")
+    private Catalog catalog;
+
+    @Column
+    private LocalDateTime registrationDeadline;
 
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

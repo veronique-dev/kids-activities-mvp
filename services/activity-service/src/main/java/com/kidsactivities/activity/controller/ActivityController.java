@@ -24,8 +24,10 @@ public class ActivityController {
 
     @GetMapping
     @Operation(summary = "Liste des activités actives")
-    public List<ActivityResponse> getActiveActivities() {
-        return activityService.getActiveActivities();
+    public List<ActivityResponse> getActiveActivities(
+            @RequestParam(required = false) Long catalogId
+    ) {
+        return activityService.getActiveActivities(catalogId);
     }
 
     @GetMapping("/{id}")

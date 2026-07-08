@@ -39,7 +39,12 @@ export const api = {
   register: (data) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
   login: (data) => request('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
   getMe: () => request('/users/me'),
-  getActivities: () => request('/activities'),
+  getActivities: (catalogId) => {
+    const query = catalogId ? `?catalogId=${catalogId}` : '';
+    return request(`/activities${query}`);
+  },
+  getCatalogs: () => request('/catalogs'),
+  getAllCatalogs: () => request('/catalogs/admin/all'),
   getAllActivities: () => request('/activities/admin/all'),
   createActivity: (data) => request('/activities', { method: 'POST', body: JSON.stringify(data) }),
   updateActivity: (id, data) => request(`/activities/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

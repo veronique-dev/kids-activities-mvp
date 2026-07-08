@@ -244,6 +244,23 @@ class BookingServiceTest {
         return request;
     }
 
+    @Test
+    void createBooking_shouldRejectWhenRegistrationClosed() {
+        BookingRequest request = buildRequest();
+        ActivitySnapshot activity = buildActivitySnapshot();
+        activity.setBookingOpen(false);
+        activity.setRegistrationDeadline(LocalDateTime.now().minusHours(1));
+
+        when(bookingRepository.existsByUserIdAndActivityIdAndStatusIn(
+                eq(1L), eq(1L), eq(List.of(BookingStatus.CONFIRMED, BookingStatus.PENDING_PAYMENT))))
+                .thenReturn(false);
+        when(activityServiceClient.getActivity(1L)).thenReturn(activity);
+
+        assertThatThrownBy(() -> bookingService.createBooking(1L, request))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Les inscriptions sont closes pour cette activité");
+    }
+
     private ActivitySnapshot buildActivitySnapshot() {
         return ActivitySnapshot.builder()
                 .id(1L)
@@ -253,6 +270,8 @@ class BookingServiceTest {
                 .price(new BigDecimal("25.00"))
                 .active(true)
                 .availableSpots(4)
+                .registrationDeadline(LocalDateTime.now().plusDays(1))
+                .bookingOpen(true)
                 .build();
     }
 

@@ -3,6 +3,7 @@ package com.kidsactivities.activity.service;
 import com.kidsactivities.activity.dto.ActivityRequest;
 import com.kidsactivities.activity.dto.ActivityResponse;
 import com.kidsactivities.activity.entity.Activity;
+import com.kidsactivities.activity.entity.Catalog;
 import com.kidsactivities.activity.repository.ActivityRepository;
 import com.kidsactivities.common.exception.BadRequestException;
 import com.kidsactivities.common.exception.ResourceNotFoundException;
@@ -30,6 +31,9 @@ class ActivityServiceTest {
     @Mock
     private ActivityRepository activityRepository;
 
+    @Mock
+    private CatalogService catalogService;
+
     @InjectMocks
     private ActivityService activityService;
 
@@ -43,6 +47,9 @@ class ActivityServiceTest {
             activity.setId(1L);
             return activity;
         });
+        when(catalogService.findCatalog(1L)).thenReturn(
+                Catalog.builder().id(1L).name("Arts").emoji("🎨").build()
+        );
 
         ActivityResponse response = activityService.createActivity(request);
 
@@ -118,14 +125,30 @@ class ActivityServiceTest {
         assertThat(result.getAvailableSpots()).isEqualTo(5);
     }
 
+    @Test
+    @DisplayName("US-07: Given past registration deadline When reserve Then 400")
+    void reserveSpot_shouldRejectWhenRegistrationClosed() {
+        Activity activity = buildActivity(5, 5);
+        activity.setRegistrationDeadline(LocalDateTime.now().minusHours(1));
+        when(activityRepository.findById(1L)).thenReturn(Optional.of(activity));
+
+        assertThatThrownBy(() -> activityService.reserveSpot(1L))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessage("Les inscriptions sont closes pour cette activité");
+    }
+
     private ActivityRequest buildRequest(int maxCapacity) {
         ActivityRequest request = new ActivityRequest();
         request.setTitle("Atelier");
-        request.setDescription("Description");
+        request.setDescription("Description courte");
+        request.setDetails("Détails complets de l'activité.");
+        request.setPrerequisites("Âge 6-10 ans, tenue confortable.");
         request.setStartDateTime(LocalDateTime.now().plusDays(5));
+        request.setRegistrationDeadline(LocalDateTime.now().plusDays(3));
         request.setLocation("Paris");
         request.setMaxCapacity(maxCapacity);
         request.setPrice(new BigDecimal("25.00"));
+        request.setCatalogId(1L);
         request.setActive(true);
         return request;
     }
@@ -135,12 +158,16 @@ class ActivityServiceTest {
                 .id(1L)
                 .title("Atelier")
                 .description("Desc")
+                .details("Détails")
+                .prerequisites("Prérequis")
                 .startDateTime(LocalDateTime.now().plusDays(3))
+                .registrationDeadline(LocalDateTime.now().plusDays(1))
                 .location("Paris")
                 .maxCapacity(maxCapacity)
                 .availableSpots(availableSpots)
                 .price(new BigDecimal("20.00"))
                 .active(true)
+                .catalog(Catalog.builder().id(1L).name("Arts").emoji("🎨").build())
                 .build();
     }
 }
