@@ -1,0 +1,121 @@
+{
+  "project": "Kids Activities MVP",
+  "layers": {
+    "unit": "Tests métier isolés (Mockito) — rapides, sans infra",
+    "integration": "Tests Spring Boot + MockMvc par microservice",
+    "e2e": "Tests REST Assured via gateway — stack Docker requise"
+  },
+  "coverage": [
+    {
+      "userStory": "US-01",
+      "title": "Consulter le catalogue",
+      "tests": ["MvpAcceptanceTest.us01_publicActivitiesList", "ActivityServiceTest (microservice)"]
+    },
+    {
+      "userStory": "US-02",
+      "title": "Détail activité",
+      "tests": ["MvpAcceptanceTest.us02_activityDetail", "ActivityServiceTest.getActivityById_shouldThrowWhenNotFound"]
+    },
+    {
+      "userStory": "US-03",
+      "title": "Inscription",
+      "tests": ["MvpAcceptanceTest.us03_registerAndDuplicateEmail", "AuthServiceTest (auth-service)"]
+    },
+    {
+      "userStory": "US-04",
+      "title": "Connexion",
+      "tests": ["MvpAcceptanceTest.us04_loginValidAndInvalid", "AuthServiceTest", "AuthSecurityIntegrationTest"]
+    },
+    {
+      "userStory": "US-05",
+      "title": "Déconnexion",
+      "tests": ["manual-ui — Navbar logout"],
+      "type": "manual"
+    },
+    {
+      "userStory": "US-06",
+      "title": "Profil utilisateur",
+      "tests": ["MvpAcceptanceTest.us06_getCurrentUserProfile"]
+    },
+    {
+      "userStory": "US-07",
+      "title": "Réserver",
+      "tests": [
+        "MvpAcceptanceTest.us07_createBooking",
+        "MvpAcceptanceTest.us07_duplicateBookingRejected",
+        "BookingValidationE2ETest.us07_rejectInvalidChildAge",
+        "BookingServiceTest (booking-service)",
+        "ActivityServiceTest.reserveSpot_*"
+      ]
+    },
+    {
+      "userStory": "US-08",
+      "title": "Mes réservations",
+      "tests": ["MvpAcceptanceTest.us08_listBookings", "BookingValidationE2ETest.us08_parentBookingsContainOwnEmail"]
+    },
+    {
+      "userStory": "US-09",
+      "title": "Annuler",
+      "tests": [
+        "MvpAcceptanceTest.us09_cancelBooking",
+        "BookingValidationE2ETest.us09_rejectUnknownBooking",
+        "BookingServiceTest.cancelBooking_*"
+      ]
+    },
+    {
+      "userStory": "US-10",
+      "title": "Accès admin",
+      "tests": ["MvpAcceptanceTest.us10_adminAccess"]
+    },
+    {
+      "userStory": "US-11",
+      "title": "Dashboard",
+      "tests": ["MvpAcceptanceTest.us11_adminDashboard"]
+    },
+    {
+      "userStory": "US-12",
+      "title": "Créer activité",
+      "tests": ["MvpAcceptanceTest.us12_createActivity", "ActivityServiceTest.createActivity_*"]
+    },
+    {
+      "userStory": "US-13",
+      "title": "Modifier activité",
+      "tests": [
+        "MvpAcceptanceTest.us13_updateActivity",
+        "BookingValidationE2ETest.us13_rejectCapacityBelowBooked",
+        "ActivityServiceTest.updateActivity_*"
+      ]
+    },
+    {
+      "userStory": "US-17",
+      "title": "E-mail bienvenue",
+      "tests": ["NotificationsE2ETest.us17_welcomeEmailAfterRegistration", "EmailServiceTest.sendWelcomeEmail_*"]
+    },
+    {
+      "userStory": "US-18",
+      "title": "E-mail confirmation",
+      "tests": ["EmailServiceTest.sendBookingConfirmation_*", "manual-mailpit après réservation"]
+    },
+    {
+      "userStory": "US-19",
+      "title": "E-mail annulation",
+      "tests": ["EmailServiceTest.sendBookingCancellation_*", "manual-mailpit après annulation"]
+    },
+    {
+      "userStory": "US-20",
+      "title": "JWT",
+      "tests": ["MvpAcceptanceTest.us20_jwtSecurity", "AuthSecurityIntegrationTest", "backend SecurityIntegrationTest"]
+    },
+    {
+      "userStory": "US-21",
+      "title": "Microservices",
+      "tests": ["MvpAcceptanceTest.us21_endToEndFlow"]
+    }
+  ],
+  "commands": {
+    "unit_all": "mvn test -pl services/auth-service,services/activity-service,services/booking-service,services/notification-service,backend",
+    "e2e": "mvn -pl e2e-tests -Pe2e test -De2e.base.url=http://localhost:8080",
+    "e2e_with_mail": "mvn -pl e2e-tests -Pe2e test -De2e.base.url=http://localhost:8080 -De2e.mailpit.enabled=true -De2e.mailpit.url=http://localhost:8025",
+    "postman": "product/postman/Kids-Activities-MVP.postman_collection.json"
+  }
+}

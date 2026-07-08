@@ -1,0 +1,131 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: kids
+      POSTGRES_PASSWORD: kids123
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infra/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kids"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
+      SPRING_DATASOURCE_USERNAME: kids
+      SPRING_DATASOURCE_PASSWORD: kids123
+      JWT_SECRET: change-me-in-production-use-a-long-random-secret-key-at-least-256-bits
+      RABBITMQ_HOST: rabbitmq
+      INTERNAL_API_KEY: internal-dev-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  activity-service:
+    build:
+      context: .
+      dockerfile: services/activity-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/activity_db
+      SPRING_DATASOURCE_USERNAME: kids
+      SPRING_DATASOURCE_PASSWORD: kids123
+      JWT_SECRET: change-me-in-production-use-a-long-random-secret-key-at-least-256-bits
+      INTERNAL_API_KEY: internal-dev-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  booking-service:
+    build:
+      context: .
+      dockerfile: services/booking-service/Dockerfile
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/booking_db
+      SPRING_DATASOURCE_USERNAME: kids
+      SPRING_DATASOURCE_PASSWORD: kids123
+      JWT_SECRET: change-me-in-production-use-a-long-random-secret-key-at-least-256-bits
+      RABBITMQ_HOST: rabbitmq
+      INTERNAL_API_KEY: internal-dev-key
+      ACTIVITY_SERVICE_URL: http://activity-service:8082
+      AUTH_SERVICE_URL: http://auth-service:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      activity-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+      MAIL_FROM: noreply@kidsactivities.fr
+      MAIL_ADMIN: admin@kidsactivities.fr
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      AUTH_SERVICE_URL: http://auth-service:8081
+      ACTIVITY_SERVICE_URL: http://activity-service:8082
+      BOOKING_SERVICE_URL: http://booking-service:8083
+      INTERNAL_API_KEY: internal-dev-key
+      JWT_SECRET: change-me-in-production-use-a-long-random-secret-key-at-least-256-bits
+    depends_on:
+      - auth-service
+      - activity-service
+      - booking-service
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+
+volumes:
+  postgres_data:

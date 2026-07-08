@@ -1,0 +1,416 @@
+{
+  "info": {
+    "name": "Kids Activities MVP — User Stories Must",
+    "description": "Scénarios automatisés alignés sur les User Stories Must (US-01 à US-21).\n\nPrérequis : `docker compose up` ou stack locale sur http://localhost:8080\n\nComptes seed :\n- parent@example.com / parent123\n- admin@kidsactivities.fr / admin123",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "parentToken", "value": "" },
+    { "key": "adminToken", "value": "" },
+    { "key": "activityId", "value": "1" },
+    { "key": "bookingId", "value": "" },
+    { "key": "createdActivityId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "EPIC-1 — Découverte",
+      "item": [
+        {
+          "name": "US-01 — GET /api/activities (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-01: status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('US-01: liste JSON', () => {",
+                  "  const data = pm.response.json();",
+                  "  pm.expect(data).to.be.an('array');",
+                  "  if (data.length > 0) {",
+                  "    pm.expect(data[0]).to.have.property('title');",
+                  "    pm.expect(data[0]).to.have.property('availableSpots');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/activities"
+          }
+        },
+        {
+          "name": "US-02 — GET /api/activities/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-02: status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('US-02: détail activité', () => {",
+                  "  const a = pm.response.json();",
+                  "  pm.expect(a).to.have.property('title');",
+                  "  pm.expect(a).to.have.property('location');",
+                  "  pm.expect(a).to.have.property('price');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/activities/{{activityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-2 — Authentification",
+      "item": [
+        {
+          "name": "US-04 — POST /api/auth/login (parent)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-04: login 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('US-04: token présent', () => pm.expect(body.token).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('parentToken', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent@example.com\",\n  \"password\": \"parent123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "US-04 — POST /api/auth/login (invalid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-04: mauvais MDP → 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent@example.com\",\n  \"password\": \"wrong-password\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "US-03 — POST /api/auth/register (unique email)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('uniqueEmail', 'test-' + Date.now() + '@example.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-03: register 201', () => pm.response.to.have.status(201));",
+                  "const body = pm.response.json();",
+                  "pm.test('US-03: token + user', () => {",
+                  "  pm.expect(body.token).to.be.a('string');",
+                  "  pm.expect(body.user.role).to.eql('PARENT');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{uniqueEmail}}\",\n  \"password\": \"password123\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register"
+          }
+        },
+        {
+          "name": "US-03 — POST /api/auth/register (duplicate)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-03: doublon → 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"parent@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"Dup\",\n  \"lastName\": \"Licata\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/register"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-3 — Réservations",
+      "item": [
+        {
+          "name": "US-08 — GET /api/bookings (sans token → 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-08/US-20: 401 sans token', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/bookings"
+          }
+        },
+        {
+          "name": "US-07 — POST /api/bookings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-07: booking 201', () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test('US-07: CONFIRMED', () => pm.expect(b.status).to.eql('CONFIRMED'));",
+                  "pm.collectionVariables.set('bookingId', b.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{parentToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"activityId\": {{activityId}},\n  \"childName\": \"Lucas\",\n  \"childAge\": 8\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings"
+          }
+        },
+        {
+          "name": "US-08 — GET /api/bookings (parent)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-08: 200', () => pm.response.to.have.status(200));",
+                  "pm.test('US-08: array', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{parentToken}}" }],
+            "url": "{{baseUrl}}/api/bookings"
+          }
+        },
+        {
+          "name": "US-09 — DELETE /api/bookings/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-09: annulation OK', () => pm.response.to.have.status(200));",
+                  "pm.test('US-09: CANCELLED', () => pm.expect(pm.response.json().status).to.eql('CANCELLED'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{parentToken}}" }],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-4 — Administration",
+      "item": [
+        {
+          "name": "Setup — Login admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.collectionVariables.set('adminToken', pm.response.json().token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@kidsactivities.fr\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/login"
+          }
+        },
+        {
+          "name": "US-10/11 — GET /api/admin/dashboard",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-10/11: admin dashboard 200', () => pm.response.to.have.status(200));",
+                  "const d = pm.response.json();",
+                  "pm.test('US-11: champs stats', () => {",
+                  "  pm.expect(d).to.have.property('totalUsers');",
+                  "  pm.expect(d).to.have.property('totalActivities');",
+                  "  pm.expect(d).to.have.property('recentBookings');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/admin/dashboard"
+          }
+        },
+        {
+          "name": "US-10 — GET /api/admin/dashboard (parent → 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-10: parent → 403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{parentToken}}" }],
+            "url": "{{baseUrl}}/api/admin/dashboard"
+          }
+        },
+        {
+          "name": "US-12 — POST /api/activities",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-12: création 201', () => pm.response.to.have.status(201));",
+                  "const a = pm.response.json();",
+                  "pm.test('US-12: availableSpots = maxCapacity', () => {",
+                  "  pm.expect(a.availableSpots).to.eql(a.maxCapacity);",
+                  "});",
+                  "pm.collectionVariables.set('createdActivityId', a.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test E2E Atelier\",\n  \"description\": \"Activité créée par test Postman\",\n  \"startDateTime\": \"2026-12-01T14:00:00\",\n  \"location\": \"Paris\",\n  \"maxCapacity\": 5,\n  \"price\": 15.00,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/activities"
+          }
+        },
+        {
+          "name": "US-13 — PUT /api/activities/{id}",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-13: update 200', () => pm.response.to.have.status(200));",
+                  "pm.test('US-13: titre modifié', () => pm.expect(pm.response.json().title).to.include('Modifié'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Test E2E Atelier Modifié\",\n  \"description\": \"Description mise à jour\",\n  \"startDateTime\": \"2026-12-01T14:00:00\",\n  \"location\": \"Paris\",\n  \"maxCapacity\": 5,\n  \"price\": 18.00,\n  \"active\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/activities/{{createdActivityId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "EPIC-6 — Sécurité",
+      "item": [
+        {
+          "name": "US-20 — GET /api/bookings (token invalide → 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('US-20: token invalide → 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer invalid-token" }],
+            "url": "{{baseUrl}}/api/bookings"
+          }
+        }
+      ]
+    }
+  ]
+}

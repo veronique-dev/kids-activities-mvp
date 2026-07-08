@@ -1,0 +1,295 @@
+{
+  "project": "Kids Activities MVP",
+  "version": "1.0.0",
+  "testAccounts": {
+    "admin": { "email": "admin@kidsactivities.fr", "password": "admin123", "role": "ADMIN" },
+    "parent": { "email": "parent@example.com", "password": "parent123", "role": "PARENT" }
+  },
+  "epics": [
+    {
+      "id": "EPIC-1",
+      "name": "Découverte des activités",
+      "stories": ["US-01", "US-02"]
+    },
+    {
+      "id": "EPIC-2",
+      "name": "Compte et authentification",
+      "stories": ["US-03", "US-04", "US-05"]
+    },
+    {
+      "id": "EPIC-3",
+      "name": "Réservations",
+      "stories": ["US-07", "US-08", "US-09"]
+    },
+    {
+      "id": "EPIC-4",
+      "name": "Administration",
+      "stories": ["US-10", "US-11", "US-12", "US-13"]
+    },
+    {
+      "id": "EPIC-5",
+      "name": "Notifications",
+      "stories": ["US-17", "US-18", "US-19"]
+    },
+    {
+      "id": "EPIC-6",
+      "name": "Sécurité et architecture",
+      "stories": ["US-20", "US-21"]
+    }
+  ],
+  "stories": [
+    {
+      "id": "US-01",
+      "title": "Consulter le catalogue d'activités",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-1",
+      "persona": "Visiteur / Parent",
+      "userStory": "En tant que visiteur ou parent, je veux voir la liste des activités disponibles, afin de choisir une activité adaptée à mon enfant.",
+      "labels": ["frontend", "public", "activities"],
+      "acceptanceCriteria": [
+        "Given je suis un visiteur non connecté, When j'accède à /, Then je vois les activités actives sans connexion",
+        "Given des activités existent, When j'accède au catalogue, Then chaque carte affiche titre, description, date, lieu, prix et places restantes",
+        "Given aucune activité active, When j'accède au catalogue, Then le message vide s'affiche"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us01_publicActivitiesList"
+    },
+    {
+      "id": "US-02",
+      "title": "Voir le détail d'une activité",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-1",
+      "persona": "Visiteur / Parent",
+      "userStory": "En tant que visiteur ou parent, je veux consulter les informations d'une activité, afin de décider si elle convient à mon enfant.",
+      "labels": ["frontend", "activities"],
+      "acceptanceCriteria": [
+        "Given une activité active, When je consulte GET /api/activities/{id}, Then les champs détaillés sont retournés",
+        "Given 0 place restante, When je suis parent connecté, Then le bouton Réserver est désactivé côté UI"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us02_activityDetail"
+    },
+    {
+      "id": "US-03",
+      "title": "Créer un compte parent",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-2",
+      "persona": "Visiteur",
+      "userStory": "En tant que visiteur, je veux m'inscrire, afin de réserver des activités pour mes enfants.",
+      "labels": ["auth", "email"],
+      "acceptanceCriteria": [
+        "Given un e-mail unique, When POST /api/auth/register, Then compte PARENT créé et token JWT retourné",
+        "Given un e-mail existant, When POST /api/auth/register, Then 400 avec message d'erreur",
+        "Given inscription réussie, When l'événement est publié, Then e-mail de bienvenue envoyé (Mailpit)"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us03_registerAndDuplicateEmail"
+    },
+    {
+      "id": "US-04",
+      "title": "Me connecter",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-2",
+      "persona": "Parent",
+      "userStory": "En tant que parent inscrit, je veux me connecter, afin d'accéder à mes réservations.",
+      "labels": ["auth", "jwt"],
+      "acceptanceCriteria": [
+        "Given identifiants valides, When POST /api/auth/login, Then token JWT retourné",
+        "Given mauvais mot de passe, When POST /api/auth/login, Then 401"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us04_loginValidAndInvalid"
+    },
+    {
+      "id": "US-05",
+      "title": "Me déconnecter",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-2",
+      "persona": "Parent",
+      "userStory": "En tant que parent connecté, je veux me déconnecter, afin de sécuriser mon compte.",
+      "labels": ["frontend", "auth"],
+      "acceptanceCriteria": [
+        "Given je suis connecté, When je me déconnecte côté UI, Then le token localStorage est supprimé"
+      ],
+      "automatedTest": "manual-ui"
+    },
+    {
+      "id": "US-07",
+      "title": "Réserver une place pour mon enfant",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-3",
+      "persona": "Parent",
+      "userStory": "En tant que parent connecté, je veux réserver une activité pour mon enfant.",
+      "labels": ["booking", "email", "microservices"],
+      "acceptanceCriteria": [
+        "Given parent connecté et places disponibles, When POST /api/bookings, Then réservation CONFIRMED et places décrémentées",
+        "Given réservation existante, When nouvelle réservation même activité, Then 400",
+        "Given 0 place, When POST /api/bookings, Then 400"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us07_createBooking, MvpAcceptanceTest.us07_duplicateBookingRejected"
+    },
+    {
+      "id": "US-08",
+      "title": "Consulter mes réservations",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-3",
+      "persona": "Parent",
+      "userStory": "En tant que parent connecté, je veux voir mes réservations.",
+      "labels": ["booking"],
+      "acceptanceCriteria": [
+        "Given parent connecté, When GET /api/bookings, Then uniquement ses réservations",
+        "Given non authentifié, When GET /api/bookings, Then 401"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us08_listBookings"
+    },
+    {
+      "id": "US-09",
+      "title": "Annuler une réservation",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-3",
+      "persona": "Parent",
+      "userStory": "En tant que parent connecté, je veux annuler une réservation.",
+      "labels": ["booking", "email"],
+      "acceptanceCriteria": [
+        "Given réservation confirmée, When DELETE /api/bookings/{id}, Then statut CANCELLED et place libérée",
+        "Given réservation d'un autre parent, When DELETE, Then 403"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us09_cancelBooking"
+    },
+    {
+      "id": "US-10",
+      "title": "Accéder à l'espace administrateur",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-4",
+      "persona": "Administrateur",
+      "userStory": "En tant qu'administrateur, je veux accéder à l'espace admin.",
+      "labels": ["admin", "security"],
+      "acceptanceCriteria": [
+        "Given token ADMIN, When GET /api/admin/dashboard, Then 200",
+        "Given token PARENT, When GET /api/admin/dashboard, Then 403"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us10_adminAccess"
+    },
+    {
+      "id": "US-11",
+      "title": "Consulter le tableau de bord",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-4",
+      "persona": "Administrateur",
+      "userStory": "En tant qu'administrateur, je veux voir un tableau de bord synthétique.",
+      "labels": ["admin", "gateway", "bff"],
+      "acceptanceCriteria": [
+        "Given admin connecté, When GET /api/admin/dashboard, Then totaux users/activities/bookings et recentBookings"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us11_adminDashboard"
+    },
+    {
+      "id": "US-12",
+      "title": "Créer une activité",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-4",
+      "persona": "Administrateur",
+      "userStory": "En tant qu'administrateur, je veux publier une nouvelle activité.",
+      "labels": ["admin", "activities"],
+      "acceptanceCriteria": [
+        "Given admin connecté, When POST /api/activities, Then activité créée avec availableSpots = maxCapacity"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us12_createActivity"
+    },
+    {
+      "id": "US-13",
+      "title": "Modifier une activité",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-4",
+      "persona": "Administrateur",
+      "userStory": "En tant qu'administrateur, je veux modifier une activité existante.",
+      "labels": ["admin", "activities"],
+      "acceptanceCriteria": [
+        "Given admin connecté, When PUT /api/activities/{id}, Then modifications persistées",
+        "Given capacité < places réservées, When PUT, Then 400"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us13_updateActivity"
+    },
+    {
+      "id": "US-17",
+      "title": "Recevoir un e-mail de bienvenue",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-5",
+      "persona": "Parent",
+      "userStory": "En tant que nouveau parent, je veux un e-mail de bienvenue.",
+      "labels": ["email", "rabbitmq", "notification-service"],
+      "acceptanceCriteria": [
+        "Given inscription réussie, When événement UserRegistered, Then e-mail visible dans Mailpit"
+      ],
+      "automatedTest": "manual-mailpit"
+    },
+    {
+      "id": "US-18",
+      "title": "Recevoir un e-mail de confirmation de réservation",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-5",
+      "persona": "Parent",
+      "userStory": "En tant que parent, je veux un e-mail après réservation.",
+      "labels": ["email", "rabbitmq"],
+      "acceptanceCriteria": [
+        "Given réservation confirmée, When événement BookingConfirmed, Then e-mail parent + admin dans Mailpit"
+      ],
+      "automatedTest": "manual-mailpit"
+    },
+    {
+      "id": "US-19",
+      "title": "Recevoir un e-mail d'annulation",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-5",
+      "persona": "Parent",
+      "userStory": "En tant que parent, je veux un e-mail lors de l'annulation.",
+      "labels": ["email", "rabbitmq"],
+      "acceptanceCriteria": [
+        "Given annulation réussie, When événement BookingCancelled, Then e-mail dans Mailpit"
+      ],
+      "automatedTest": "manual-mailpit"
+    },
+    {
+      "id": "US-20",
+      "title": "Sécuriser l'API avec JWT",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-6",
+      "persona": "Équipe technique",
+      "userStory": "En tant qu'équipe technique, je veux une API sécurisée par JWT.",
+      "labels": ["security", "jwt"],
+      "acceptanceCriteria": [
+        "Given pas de token, When route protégée, Then 401 JSON",
+        "Given token PARENT, When route admin, Then 403",
+        "Given token invalide, When route protégée, Then 401"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us20_jwtSecurity"
+    },
+    {
+      "id": "US-21",
+      "title": "Architecture microservices",
+      "type": "Story",
+      "priority": "Must",
+      "epic": "EPIC-6",
+      "persona": "Équipe technique",
+      "userStory": "En tant qu'équipe technique, je veux une architecture microservices.",
+      "labels": ["microservices", "docker", "gateway"],
+      "acceptanceCriteria": [
+        "Given docker compose up, When appel /api via gateway:8080, Then auth/activity/booking/notification répondent",
+        "Given parcours complet parent, When register + book, Then succès bout en bout"
+      ],
+      "automatedTest": "MvpAcceptanceTest.us21_endToEndFlow"
+    }
+  ]
+}
