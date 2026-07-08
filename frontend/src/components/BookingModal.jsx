@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { activityEmoji } from '../utils/activityEmoji';
 import { api } from '../api/client';
 import { processPaymentCheckout } from '../api/payments';
 
@@ -55,8 +56,11 @@ export default function BookingModal({ activity, onClose, onSuccess }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h2>Réserver : {activity.title}</h2>
+      <div className="modal modal-fun" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <span className="activity-emoji" aria-hidden="true">{activityEmoji(activity.title)}</span>
+          <h2>Réserver : {activity.title}</h2>
+        </div>
         {error && <div className="error-banner">{error}</div>}
 
         {step === 'form' && (

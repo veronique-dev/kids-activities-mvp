@@ -111,8 +111,8 @@ export default function BookingsPage() {
 
   return (
     <>
-      <section className="hero">
-        <h1>Mes réservations</h1>
+      <section className="hero hero-compact">
+        <h1>📋 Mes réservations</h1>
         <p>Suivez et gérez les inscriptions de vos enfants.</p>
       </section>
 
@@ -127,20 +127,20 @@ export default function BookingsPage() {
       {!loading && bookings.length > 0 && (
         <div className="grid">
           {bookings.map((booking) => (
-            <article key={booking.id} className="card">
+            <article key={booking.id} className="card booking-card">
+              <div className="card-header">
+                <span className="activity-emoji" aria-hidden="true">🎒</span>
+                <span className={`badge ${statusBadgeClass(booking.status)}`}>
+                  {statusLabel(booking.status)}
+                </span>
+              </div>
               <h3>{booking.activityTitle}</h3>
               <div className="card-meta">
-                <span>{formatDate(booking.activityStartDateTime)}</span>
-                <span>Enfant : {booking.childName} ({booking.childAge} ans)</span>
+                <span>📅 {formatDate(booking.activityStartDateTime)}</span>
+                <span>👧 {booking.childName} ({booking.childAge} ans)</span>
                 {booking.amount != null && booking.amount > 0 && (
-                  <span>Montant : {booking.amount} {booking.currency || '€'}</span>
+                  <span>💳 {booking.amount} {booking.currency || '€'}</span>
                 )}
-                <span>
-                  Statut :{' '}
-                  <span className={`badge ${statusBadgeClass(booking.status)}`}>
-                    {statusLabel(booking.status)}
-                  </span>
-                </span>
               </div>
               {booking.status === 'PENDING_PAYMENT' && (
                 <button

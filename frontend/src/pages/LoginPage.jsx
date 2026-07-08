@@ -24,38 +24,43 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="form-card card">
-      <h1>Connexion</h1>
-      <p style={{ color: 'var(--muted)' }}>Accédez à vos réservations d'activités.</p>
-      {error && <div className="error-banner">{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div className="form-group">
-          <label htmlFor="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-          />
-        </div>
-        <div className="form-group">
-          <label htmlFor="password">Mot de passe</label>
-          <input
-            id="password"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-          />
-        </div>
-        <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%' }}>
-          {loading ? 'Connexion...' : 'Se connecter'}
-        </button>
-      </form>
-      <p style={{ marginTop: '1rem' }}>
-        Pas encore de compte ? <Link to="/register">S'inscrire</Link>
-      </p>
+    <div className="auth-page">
+      <div className="form-card card auth-card">
+        <div className="auth-icon" aria-hidden="true">🔑</div>
+        <h1>Bon retour !</h1>
+        <p className="auth-subtitle">Connectez-vous pour gérer vos réservations.</p>
+        {error && <div className="error-banner">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              placeholder="parent@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="password">Mot de passe</label>
+            <input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+            />
+          </div>
+          <button className="btn btn-primary btn-block" type="submit" disabled={loading}>
+            {loading ? 'Connexion...' : 'Se connecter ✨'}
+          </button>
+        </form>
+        <p className="auth-footer">
+          Pas encore de compte ? <Link to="/register">Créer un compte</Link>
+        </p>
+      </div>
     </div>
   );
 }

@@ -102,8 +102,8 @@ export default function AdminPage() {
 
   return (
     <>
-      <section className="hero">
-        <h1>Administration</h1>
+      <section className="hero hero-compact hero-admin">
+        <h1>⚙️ Administration</h1>
         <p>Vue d'ensemble et gestion des activités.</p>
       </section>
 
@@ -111,11 +111,11 @@ export default function AdminPage() {
 
       {dashboard && (
         <section className="stats-grid">
-          <div className="stat-card"><strong>{dashboard.totalUsers}</strong>Utilisateurs</div>
-          <div className="stat-card"><strong>{dashboard.totalActivities}</strong>Activités</div>
-          <div className="stat-card"><strong>{dashboard.totalBookings}</strong>Réservations</div>
-          <div className="stat-card"><strong>{dashboard.confirmedBookings}</strong>Confirmées</div>
-          <div className="stat-card"><strong>{dashboard.cancelledBookings}</strong>Annulées</div>
+          <div className="stat-card stat-purple"><strong>{dashboard.totalUsers}</strong>👥 Utilisateurs</div>
+          <div className="stat-card stat-coral"><strong>{dashboard.totalActivities}</strong>🎨 Activités</div>
+          <div className="stat-card stat-mint"><strong>{dashboard.totalBookings}</strong>📋 Réservations</div>
+          <div className="stat-card stat-yellow"><strong>{dashboard.confirmedBookings}</strong>✅ Confirmées</div>
+          <div className="stat-card stat-muted"><strong>{dashboard.cancelledBookings}</strong>❌ Annulées</div>
         </section>
       )}
 
