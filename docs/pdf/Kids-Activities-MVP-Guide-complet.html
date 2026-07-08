@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Kids Activities MVP — Guide complet</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1.5rem; line-height: 1.6; color: #222; }
+    h1,h2,h3 { color: #1a365d; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.9rem; }
+    th, td { border: 1px solid #ccc; padding: 0.4rem 0.6rem; text-align: left; }
+    th { background: #f0f4f8; }
+    code, pre { background: #f5f5f5; border-radius: 4px; }
+    pre { padding: 1rem; overflow-x: auto; }
+    hr { margin: 2rem 0; border: none; border-top: 1px solid #ddd; }
+    @media print { body { max-width: none; } }
+  </style>
+</head>
+<body>
+<h1>Kids Activities MVP — Guide complet</h1>
+<p><em>Généré le 08/07/2026 à 15:54</em></p>
+<hr>
+<h2>Prérequis</h2>
+<ul>
+<li><strong>Docker</strong> et <strong>Docker Compose</strong> (mode recommandé)</li>
+<li>Ou en local : Java 21, Maven 3.9+, Node.js 20+, PostgreSQL 16</li>
+</ul>
+<h2>Mode Docker (recommandé)</h2>
+<p>À la racine du projet :</p>
+<pre><code class="language-bash">docker compose up --build
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Frontend</td>
+<td><a href="http://localhost:5173">http://localhost:5173</a></td>
+</tr>
+<tr>
+<td>API Gateway</td>
+<td><a href="http://localhost:8080">http://localhost:8080</a></td>
+</tr>
+<tr>
+<td>Mailpit (e-mails)</td>
+<td><a href="http://localhost:8025">http://localhost:8025</a></td>
+</tr>
+<tr>
+<td>RabbitMQ Management</td>
+<td><a href="http://localhost:15672">http://localhost:15672</a> (guest/guest)</td>
+</tr>
+<tr>
+<td>PostgreSQL (hôte)</td>
+<td>localhost:<strong>5433</strong> (user <code>kids</code>, password <code>kids123</code>)</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>PostgreSQL est mappé sur le port <strong>5433</strong> pour éviter les conflits avec une instance locale sur 5432.</p>
+</blockquote>
+<p>Arrêter la stack :</p>
+<pre><code class="language-bash">docker compose down
+</code></pre>
+<h2>Mode local (sans Docker pour le backend)</h2>
+<ol>
+<li>Démarrer PostgreSQL et créer les bases <code>auth_db</code>, <code>activity_db</code>, <code>booking_db</code> (voir <code>infra/postgres/init-databases.sql</code>).</li>
+<li>Démarrer RabbitMQ et Mailpit (ou via Docker pour ces seuls services).</li>
+<li>Lancer chaque microservice :</li>
+</ol>
+<pre><code class="language-bash">mvn -pl services/auth-service spring-boot:run
+mvn -pl services/activity-service spring-boot:run
+mvn -pl services/booking-service spring-boot:run
+mvn -pl services/notification-service spring-boot:run
+mvn -pl services/gateway spring-boot:run
+</code></pre>
+<ol start="4">
+<li>Frontend :</li>
+</ol>
+<pre><code class="language-bash">cd frontend &amp;&amp; npm install &amp;&amp; npm run dev
+</code></pre>
+<p>Le frontend en dev pointe vers <code>http://localhost:8080</code> (gateway).</p>
+<h2>Lancer les tests</h2>
+<h3>Tests unitaires (tous les microservices)</h3>
+<pre><code class="language-bash">mvn test -pl services/auth-service,services/activity-service,services/booking-service,services/notification-service
+</code></pre>
+<h3>Tests E2E (stack Docker requise)</h3>
+<pre><code class="language-bash">mvn -pl e2e-tests -Pe2e test -De2e.base.url=http://localhost:8080
+</code></pre>
+<h3>Tests E2E avec vérification Mailpit</h3>
+<pre><code class="language-bash">mvn -pl e2e-tests -Pe2e test \
+  -De2e.base.url=http://localhost:8080 \
+  -De2e.mailpit.enabled=true \
+  -De2e.mailpit.url=http://localhost:8025
+</code></pre>
+<h2>Comptes de démonstration</h2>
+<table>
+<thead>
+<tr>
+<th>Rôle</th>
+<th>E-mail</th>
+<th>Mot de passe</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Admin</td>
+<td><a href="mailto:admin@kidsactivities.fr">admin@kidsactivities.fr</a></td>
+<td>admin123</td>
+</tr>
+<tr>
+<td>Parent</td>
+<td><a href="mailto:parent@example.com">parent@example.com</a></td>
+<td>parent123</td>
+</tr>
+</tbody></table>
+<p>Voir <a href="05-comptes-et-configuration.md">Comptes &amp; configuration</a> pour le détail.</p>
+<hr>
+<h2>Vue d&#39;ensemble</h2>
+<p>Le MVP est découpé en <strong>microservices</strong> Spring Boot 3.3, orchestrés par Docker Compose. Le frontend React communique uniquement avec l&#39;<strong>API Gateway</strong>.</p>
+<pre><code>┌─────────────┐     ┌──────────────┐     ┌─────────────────────────────────────┐
+│  Frontend   │────▶│   Gateway    │────▶│ auth-service      :8081  auth_db   │
+│  :5173      │     │   :8080      │     │ activity-service  :8082  activity_db│
+└─────────────┘     └──────────────┘     │ booking-service   :8083  booking_db │
+                              │            └─────────────────────────────────────┘
+                              │                          │
+                              │            ┌─────────────▼─────────────┐
+                              └───────────▶│ notification-service :8084 │
+                                           │ (consomme RabbitMQ)       │
+                                           └─────────────┬─────────────┘
+                                                         │
+                              ┌──────────────┐    ┌──────▼──────┐
+                              │  RabbitMQ    │◀───│   Mailpit   │
+                              │  :5672       │    │   :8025     │
+                              └──────────────┘    └─────────────┘
+</code></pre>
+<h2>Modules Maven</h2>
+<table>
+<thead>
+<tr>
+<th>Module</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>common/</code></td>
+<td>DTOs, événements RabbitMQ, exceptions partagées</td>
+</tr>
+<tr>
+<td><code>services/auth-service/</code></td>
+<td>Inscription, connexion, JWT, profil utilisateur</td>
+</tr>
+<tr>
+<td><code>services/activity-service/</code></td>
+<td>CRUD activités, gestion des places</td>
+</tr>
+<tr>
+<td><code>services/booking-service/</code></td>
+<td>Réservations, annulations, saga (réserve/libère via HTTP)</td>
+</tr>
+<tr>
+<td><code>services/notification-service/</code></td>
+<td>E-mails async (événements RabbitMQ → Mailpit/SMTP)</td>
+</tr>
+<tr>
+<td><code>services/gateway/</code></td>
+<td>Spring Cloud Gateway + BFF admin (<code>/api/admin/**</code>)</td>
+</tr>
+<tr>
+<td><code>e2e-tests/</code></td>
+<td>Tests d&#39;acceptation REST Assured via gateway</td>
+</tr>
+<tr>
+<td><code>backend/</code></td>
+<td>Monolithe legacy (conservé, non utilisé par Docker)</td>
+</tr>
+</tbody></table>
+<h2>Routage Gateway</h2>
+<table>
+<thead>
+<tr>
+<th>Préfixe</th>
+<th>Service cible</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/api/auth/**</code></td>
+<td>auth-service</td>
+</tr>
+<tr>
+<td><code>/api/users/**</code></td>
+<td>auth-service</td>
+</tr>
+<tr>
+<td><code>/api/activities/**</code></td>
+<td>activity-service</td>
+</tr>
+<tr>
+<td><code>/api/bookings/**</code></td>
+<td>booking-service</td>
+</tr>
+<tr>
+<td><code>/api/admin/**</code></td>
+<td>gateway (agrégation BFF)</td>
+</tr>
+</tbody></table>
+<h2>Événements asynchrones (RabbitMQ)</h2>
+<table>
+<thead>
+<tr>
+<th>Événement</th>
+<th>Émetteur</th>
+<th>Consommateur</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>UserRegisteredEvent</code></td>
+<td>auth-service</td>
+<td>notification-service → e-mail bienvenue</td>
+</tr>
+<tr>
+<td><code>BookingConfirmedEvent</code></td>
+<td>booking-service</td>
+<td>notification-service → e-mail confirmation</td>
+</tr>
+<tr>
+<td><code>BookingCancelledEvent</code></td>
+<td>booking-service</td>
+<td>notification-service → e-mail annulation</td>
+</tr>
+</tbody></table>
+<h2>Bases de données</h2>
+<p>PostgreSQL héberge trois bases isolées :</p>
+<ul>
+<li><code>auth_db</code> — utilisateurs</li>
+<li><code>activity_db</code> — activités</li>
+<li><code>booking_db</code> — réservations</li>
+</ul>
+<p>Script d&#39;initialisation : <code>infra/postgres/init-databases.sql</code></p>
+<h2>Sécurité</h2>
+<ul>
+<li>Authentification <strong>JWT</strong> (header <code>Authorization: Bearer &lt;token&gt;</code>)</li>
+<li>Rôle dans le token : <code>PARENT</code> ou <code>ADMIN</code></li>
+<li>Routes admin protégées par <code>@PreAuthorize(&quot;hasRole(&#39;ADMIN&#39;)&quot;)</code></li>
+<li>Appels inter-services : header <code>X-Internal-Api-Key</code></li>
+</ul>
+<h2>Stack technique</h2>
+<table>
+<thead>
+<tr>
+<th>Couche</th>
+<th>Technologie</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Backend</td>
+<td>Java 21, Spring Boot 3.3.6, Spring Cloud Gateway</td>
+</tr>
+<tr>
+<td>Frontend</td>
+<td>React, Vite, nginx (prod Docker)</td>
+</tr>
+<tr>
+<td>BDD</td>
+<td>PostgreSQL 16</td>
+</tr>
+<tr>
+<td>Messaging</td>
+<td>RabbitMQ 3</td>
+</tr>
+<tr>
+<td>E-mails (dev)</td>
+<td>Mailpit</td>
+</tr>
+<tr>
+<td>Tests E2E</td>
+<td>REST Assured, JUnit 5</td>
+</tr>
+</tbody></table>
+<hr>
+<p><strong>Projet :</strong> Kids Activities MVP v1.0.0<br><strong>Source JSON :</strong> <code>product/user-stories-mvp.json</code><br><strong>Export CSV (Jira) :</strong> <code>product/user-stories-mvp.csv</code></p>
+<h2>Comptes de test</h2>
+<table>
+<thead>
+<tr>
+<th>Rôle</th>
+<th>E-mail</th>
+<th>Mot de passe</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Admin</td>
+<td><a href="mailto:admin@kidsactivities.fr">admin@kidsactivities.fr</a></td>
+<td>admin123</td>
+</tr>
+<tr>
+<td>Parent</td>
+<td><a href="mailto:parent@example.com">parent@example.com</a></td>
+<td>parent123</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>EPIC-1 — Découverte des activités</h2>
+<h3>US-01 — Consulter le catalogue d&#39;activités</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Visiteur / Parent</p>
+<blockquote>
+<p>En tant que visiteur ou parent, je veux voir la liste des activités disponibles, afin de choisir une activité adaptée à mon enfant.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given je suis un visiteur non connecté, When j&#39;accède à /, Then je vois les activités actives sans connexion</li>
+<li>Given des activités existent, When j&#39;accède au catalogue, Then chaque carte affiche titre, description, date, lieu, prix et places restantes</li>
+<li>Given aucune activité active, When j&#39;accède au catalogue, Then le message vide s&#39;affiche</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us01_publicActivitiesList</code></p>
+<hr>
+<h3>US-02 — Voir le détail d&#39;une activité</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Visiteur / Parent</p>
+<blockquote>
+<p>En tant que visiteur ou parent, je veux consulter les informations d&#39;une activité, afin de décider si elle convient à mon enfant.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given une activité active, When je consulte GET /api/activities/{id}, Then les champs détaillés sont retournés</li>
+<li>Given 0 place restante, When je suis parent connecté, Then le bouton Réserver est désactivé côté UI</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us02_activityDetail</code></p>
+<hr>
+<h2>EPIC-2 — Compte et authentification</h2>
+<h3>US-03 — Créer un compte parent</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Visiteur</p>
+<blockquote>
+<p>En tant que visiteur, je veux m&#39;inscrire, afin de réserver des activités pour mes enfants.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given un e-mail unique, When POST /api/auth/register, Then compte PARENT créé et token JWT retourné</li>
+<li>Given un e-mail existant, When POST /api/auth/register, Then 400 avec message d&#39;erreur</li>
+<li>Given inscription réussie, When l&#39;événement est publié, Then e-mail de bienvenue envoyé (Mailpit)</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us03_registerAndDuplicateEmail</code></p>
+<hr>
+<h3>US-04 — Me connecter</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que parent inscrit, je veux me connecter, afin d&#39;accéder à mes réservations.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given identifiants valides, When POST /api/auth/login, Then token JWT retourné</li>
+<li>Given mauvais mot de passe, When POST /api/auth/login, Then 401</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us04_loginValidAndInvalid</code></p>
+<hr>
+<h3>US-05 — Me déconnecter</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que parent connecté, je veux me déconnecter, afin de sécuriser mon compte.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given je suis connecté, When je me déconnecte côté UI, Then le token localStorage est supprimé</li>
+</ul>
+<p><strong>Test auto :</strong> manuel (UI)</p>
+<hr>
+<h2>EPIC-3 — Réservations</h2>
+<h3>US-07 — Réserver une place pour mon enfant</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que parent connecté, je veux réserver une activité pour mon enfant.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given parent connecté et places disponibles, When POST /api/bookings, Then réservation CONFIRMED et places décrémentées</li>
+<li>Given réservation existante, When nouvelle réservation même activité, Then 400</li>
+<li>Given 0 place, When POST /api/bookings, Then 400</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us07_createBooking</code>, <code>MvpAcceptanceTest.us07_duplicateBookingRejected</code></p>
+<hr>
+<h3>US-08 — Consulter mes réservations</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que parent connecté, je veux voir mes réservations.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given parent connecté, When GET /api/bookings, Then uniquement ses réservations</li>
+<li>Given non authentifié, When GET /api/bookings, Then 401</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us08_listBookings</code></p>
+<hr>
+<h3>US-09 — Annuler une réservation</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que parent connecté, je veux annuler une réservation.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given réservation confirmée, When DELETE /api/bookings/{id}, Then statut CANCELLED et place libérée</li>
+<li>Given réservation d&#39;un autre parent, When DELETE, Then 403</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us09_cancelBooking</code></p>
+<hr>
+<h2>EPIC-4 — Administration</h2>
+<h3>US-10 — Accéder à l&#39;espace administrateur</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Administrateur</p>
+<blockquote>
+<p>En tant qu&#39;administrateur, je veux accéder à l&#39;espace admin.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given token ADMIN, When GET /api/admin/dashboard, Then 200</li>
+<li>Given token PARENT, When GET /api/admin/dashboard, Then 403</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us10_adminAccess</code></p>
+<hr>
+<h3>US-11 — Consulter le tableau de bord</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Administrateur</p>
+<blockquote>
+<p>En tant qu&#39;administrateur, je veux voir un tableau de bord synthétique.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given admin connecté, When GET /api/admin/dashboard, Then totaux users/activities/bookings et recentBookings</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us11_adminDashboard</code></p>
+<hr>
+<h3>US-12 — Créer une activité</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Administrateur</p>
+<blockquote>
+<p>En tant qu&#39;administrateur, je veux publier une nouvelle activité.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given admin connecté, When POST /api/activities, Then activité créée avec availableSpots = maxCapacity</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us12_createActivity</code></p>
+<hr>
+<h3>US-13 — Modifier une activité</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Administrateur</p>
+<blockquote>
+<p>En tant qu&#39;administrateur, je veux modifier une activité existante.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given admin connecté, When PUT /api/activities/{id}, Then modifications persistées</li>
+<li>Given capacité &lt; places réservées, When PUT, Then 400</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us13_updateActivity</code></p>
+<hr>
+<h2>EPIC-5 — Notifications</h2>
+<h3>US-17 — Recevoir un e-mail de bienvenue</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que nouveau parent, je veux un e-mail de bienvenue.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given inscription réussie, When événement UserRegistered, Then e-mail visible dans Mailpit</li>
+</ul>
+<p><strong>Test auto :</strong> <code>NotificationsE2ETest.us17_welcomeEmailAfterRegistration</code> (avec Mailpit) ou manuel</p>
+<hr>
+<h3>US-18 — Recevoir un e-mail de confirmation de réservation</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que parent, je veux un e-mail après réservation.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given réservation confirmée, When événement BookingConfirmed, Then e-mail parent + admin dans Mailpit</li>
+</ul>
+<p><strong>Test auto :</strong> <code>EmailServiceTest</code> + vérification manuelle Mailpit</p>
+<hr>
+<h3>US-19 — Recevoir un e-mail d&#39;annulation</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Parent</p>
+<blockquote>
+<p>En tant que parent, je veux un e-mail lors de l&#39;annulation.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given annulation réussie, When événement BookingCancelled, Then e-mail dans Mailpit</li>
+</ul>
+<p><strong>Test auto :</strong> <code>EmailServiceTest</code> + vérification manuelle Mailpit</p>
+<hr>
+<h2>EPIC-6 — Sécurité et architecture</h2>
+<h3>US-20 — Sécuriser l&#39;API avec JWT</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Équipe technique</p>
+<blockquote>
+<p>En tant qu&#39;équipe technique, je veux une API sécurisée par JWT.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given pas de token, When route protégée, Then 401 JSON</li>
+<li>Given token PARENT, When route admin, Then 403</li>
+<li>Given token invalide, When route protégée, Then 401</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us20_jwtSecurity</code>, <code>AuthSecurityIntegrationTest</code></p>
+<hr>
+<h3>US-21 — Architecture microservices</h3>
+<p><strong>Priorité :</strong> Must | <strong>Persona :</strong> Équipe technique</p>
+<blockquote>
+<p>En tant qu&#39;équipe technique, je veux une architecture microservices.</p>
+</blockquote>
+<p><strong>Critères d&#39;acceptation :</strong></p>
+<ul>
+<li>Given docker compose up, When appel /api via gateway:8080, Then auth/activity/booking/notification répondent</li>
+<li>Given parcours complet parent, When register + book, Then succès bout en bout</li>
+</ul>
+<p><strong>Test auto :</strong> <code>MvpAcceptanceTest.us21_endToEndFlow</code></p>
+<hr>
+<h2>Récapitulatif</h2>
+<table>
+<thead>
+<tr>
+<th>Epic</th>
+<th>Stories</th>
+<th>Count</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>EPIC-1 Découverte</td>
+<td>US-01, US-02</td>
+<td>2</td>
+</tr>
+<tr>
+<td>EPIC-2 Auth</td>
+<td>US-03, US-04, US-05</td>
+<td>3</td>
+</tr>
+<tr>
+<td>EPIC-3 Réservations</td>
+<td>US-07, US-08, US-09</td>
+<td>3</td>
+</tr>
+<tr>
+<td>EPIC-4 Admin</td>
+<td>US-10, US-11, US-12, US-13</td>
+<td>4</td>
+</tr>
+<tr>
+<td>EPIC-5 Notifications</td>
+<td>US-17, US-18, US-19</td>
+<td>3</td>
+</tr>
+<tr>
+<td>EPIC-6 Sécurité</td>
+<td>US-20, US-21</td>
+<td>2</td>
+</tr>
+<tr>
+<td><strong>Total Must</strong></td>
+<td></td>
+<td><strong>19</strong></td>
+</tr>
+</tbody></table>
+<hr>
+<p><strong>Source :</strong> <code>product/test-matrix.json</code></p>
+<h2>Niveaux de test</h2>
+<table>
+<thead>
+<tr>
+<th>Niveau</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Unitaire</strong></td>
+<td>Tests métier isolés (Mockito) — rapides, sans infra</td>
+</tr>
+<tr>
+<td><strong>Intégration</strong></td>
+<td>Tests Spring Boot + MockMvc par microservice</td>
+</tr>
+<tr>
+<td><strong>E2E</strong></td>
+<td>Tests REST Assured via gateway — stack Docker requise</td>
+</tr>
+</tbody></table>
+<h2>Matrice User Story → Tests</h2>
+<table>
+<thead>
+<tr>
+<th>US</th>
+<th>Titre</th>
+<th>Tests automatisés</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>US-01</td>
+<td>Consulter le catalogue</td>
+<td><code>MvpAcceptanceTest.us01_publicActivitiesList</code>, <code>ActivityServiceTest</code></td>
+</tr>
+<tr>
+<td>US-02</td>
+<td>Détail activité</td>
+<td><code>MvpAcceptanceTest.us02_activityDetail</code>, <code>ActivityServiceTest.getActivityById_shouldThrowWhenNotFound</code></td>
+</tr>
+<tr>
+<td>US-03</td>
+<td>Inscription</td>
+<td><code>MvpAcceptanceTest.us03_registerAndDuplicateEmail</code>, <code>AuthServiceTest</code></td>
+</tr>
+<tr>
+<td>US-04</td>
+<td>Connexion</td>
+<td><code>MvpAcceptanceTest.us04_loginValidAndInvalid</code>, <code>AuthServiceTest</code>, <code>AuthSecurityIntegrationTest</code></td>
+</tr>
+<tr>
+<td>US-05</td>
+<td>Déconnexion</td>
+<td><strong>Manuel</strong> — Navbar logout UI</td>
+</tr>
+<tr>
+<td>US-07</td>
+<td>Réserver</td>
+<td><code>MvpAcceptanceTest.us07_*</code>, <code>BookingValidationE2ETest.us07_*</code>, <code>BookingServiceTest</code>, <code>ActivityServiceTest.reserveSpot_*</code></td>
+</tr>
+<tr>
+<td>US-08</td>
+<td>Mes réservations</td>
+<td><code>MvpAcceptanceTest.us08_listBookings</code>, <code>BookingValidationE2ETest.us08_*</code></td>
+</tr>
+<tr>
+<td>US-09</td>
+<td>Annuler</td>
+<td><code>MvpAcceptanceTest.us09_cancelBooking</code>, <code>BookingValidationE2ETest.us09_*</code>, <code>BookingServiceTest.cancelBooking_*</code></td>
+</tr>
+<tr>
+<td>US-10</td>
+<td>Accès admin</td>
+<td><code>MvpAcceptanceTest.us10_adminAccess</code></td>
+</tr>
+<tr>
+<td>US-11</td>
+<td>Dashboard</td>
+<td><code>MvpAcceptanceTest.us11_adminDashboard</code></td>
+</tr>
+<tr>
+<td>US-12</td>
+<td>Créer activité</td>
+<td><code>MvpAcceptanceTest.us12_createActivity</code>, <code>ActivityServiceTest.createActivity_*</code></td>
+</tr>
+<tr>
+<td>US-13</td>
+<td>Modifier activité</td>
+<td><code>MvpAcceptanceTest.us13_updateActivity</code>, <code>BookingValidationE2ETest.us13_*</code>, <code>ActivityServiceTest.updateActivity_*</code></td>
+</tr>
+<tr>
+<td>US-17</td>
+<td>E-mail bienvenue</td>
+<td><code>NotificationsE2ETest.us17_*</code>, <code>EmailServiceTest.sendWelcomeEmail_*</code></td>
+</tr>
+<tr>
+<td>US-18</td>
+<td>E-mail confirmation</td>
+<td><code>EmailServiceTest.sendBookingConfirmation_*</code>, Mailpit manuel</td>
+</tr>
+<tr>
+<td>US-19</td>
+<td>E-mail annulation</td>
+<td><code>EmailServiceTest.sendBookingCancellation_*</code>, Mailpit manuel</td>
+</tr>
+<tr>
+<td>US-20</td>
+<td>JWT</td>
+<td><code>MvpAcceptanceTest.us20_jwtSecurity</code>, <code>AuthSecurityIntegrationTest</code></td>
+</tr>
+<tr>
+<td>US-21</td>
+<td>Microservices</td>
+<td><code>MvpAcceptanceTest.us21_endToEndFlow</code></td>
+</tr>
+</tbody></table>
+<h2>Fichiers de test</h2>
+<h3>E2E (<code>e2e-tests/</code>)</h3>
+<table>
+<thead>
+<tr>
+<th>Fichier</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>MvpAcceptanceTest.java</code></td>
+<td>Parcours MVP principal (US-01 à US-21)</td>
+</tr>
+<tr>
+<td><code>BookingValidationE2ETest.java</code></td>
+<td>Cas limites réservations et capacité</td>
+</tr>
+<tr>
+<td><code>NotificationsE2ETest.java</code></td>
+<td>E-mails via API Mailpit (optionnel)</td>
+</tr>
+</tbody></table>
+<h3>Unitaires / intégration (par service)</h3>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Fichiers</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>auth-service</td>
+<td><code>AuthServiceTest.java</code>, <code>AuthSecurityIntegrationTest.java</code></td>
+</tr>
+<tr>
+<td>activity-service</td>
+<td><code>ActivityServiceTest.java</code></td>
+</tr>
+<tr>
+<td>booking-service</td>
+<td><code>BookingServiceTest.java</code></td>
+</tr>
+<tr>
+<td>notification-service</td>
+<td><code>EmailServiceTest.java</code></td>
+</tr>
+</tbody></table>
+<h2>Commandes</h2>
+<h3>Tous les tests unitaires</h3>
+<pre><code class="language-bash">mvn test -pl services/auth-service,services/activity-service,services/booking-service,services/notification-service
+</code></pre>
+<h3>Tests E2E (gateway sur :8080)</h3>
+<pre><code class="language-bash">mvn -pl e2e-tests -Pe2e test -De2e.base.url=http://localhost:8080
+</code></pre>
+<h3>Tests E2E + Mailpit</h3>
+<pre><code class="language-bash">mvn -pl e2e-tests -Pe2e test \
+  -De2e.base.url=http://localhost:8080 \
+  -De2e.mailpit.enabled=true \
+  -De2e.mailpit.url=http://localhost:8025
+</code></pre>
+<h3>Collection Postman (tests manuels API)</h3>
+<p>Importer : <code>product/postman/Kids-Activities-MVP.postman_collection.json</code></p>
+<p>Variable d&#39;environnement recommandée : <code>baseUrl</code> = <code>http://localhost:8080</code></p>
+<h2>Tests manuels restants</h2>
+<table>
+<thead>
+<tr>
+<th>US</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>US-05</td>
+<td>Se connecter, cliquer Déconnexion, vérifier que localStorage ne contient plus de token</td>
+</tr>
+<tr>
+<td>US-18</td>
+<td>Réserver une activité, ouvrir Mailpit (:8025), vérifier e-mail confirmation</td>
+</tr>
+<tr>
+<td>US-19</td>
+<td>Annuler une réservation, vérifier e-mail annulation dans Mailpit</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Comptes de démonstration</h2>
+<p>Créés au démarrage (seed data) :</p>
+<table>
+<thead>
+<tr>
+<th>Rôle</th>
+<th>E-mail</th>
+<th>Mot de passe</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>ADMIN</strong></td>
+<td><a href="mailto:admin@kidsactivities.fr">admin@kidsactivities.fr</a></td>
+<td>admin123</td>
+<td>Dashboard admin, CRUD activités</td>
+</tr>
+<tr>
+<td><strong>PARENT</strong></td>
+<td><a href="mailto:parent@example.com">parent@example.com</a></td>
+<td>parent123</td>
+<td>Réservations, profil</td>
+</tr>
+</tbody></table>
+<h2>Ports (Docker)</h2>
+<table>
+<thead>
+<tr>
+<th>Service</th>
+<th>Port hôte</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Frontend</td>
+<td>5173</td>
+</tr>
+<tr>
+<td>API Gateway</td>
+<td>8080</td>
+</tr>
+<tr>
+<td>Auth service</td>
+<td>8081 (interne)</td>
+</tr>
+<tr>
+<td>Activity service</td>
+<td>8082 (interne)</td>
+</tr>
+<tr>
+<td>Booking service</td>
+<td>8083 (interne)</td>
+</tr>
+<tr>
+<td>Notification service</td>
+<td>8084 (interne)</td>
+</tr>
+<tr>
+<td>PostgreSQL</td>
+<td><strong>5433</strong> → 5432</td>
+</tr>
+<tr>
+<td>RabbitMQ AMQP</td>
+<td>5672</td>
+</tr>
+<tr>
+<td>RabbitMQ Management</td>
+<td>15672</td>
+</tr>
+<tr>
+<td>Mailpit UI</td>
+<td>8025</td>
+</tr>
+<tr>
+<td>Mailpit SMTP</td>
+<td>1025</td>
+</tr>
+</tbody></table>
+<h2>Bases de données</h2>
+<table>
+<thead>
+<tr>
+<th>Base</th>
+<th>Service</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>auth_db</td>
+<td>auth-service</td>
+</tr>
+<tr>
+<td>activity_db</td>
+<td>activity-service</td>
+</tr>
+<tr>
+<td>booking_db</td>
+<td>booking-service</td>
+</tr>
+</tbody></table>
+<p><strong>Connexion depuis l&#39;hôte :</strong></p>
+<pre><code>Host: localhost
+Port: 5433
+User: kids
+Password: kids123
+</code></pre>
+<h2>Variables d&#39;environnement clés</h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Valeur dev</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>JWT_SECRET</code></td>
+<td>(voir docker-compose)</td>
+<td>Secret signature JWT — <strong>à changer en prod</strong></td>
+</tr>
+<tr>
+<td><code>INTERNAL_API_KEY</code></td>
+<td>internal-dev-key</td>
+<td>Appels inter-services</td>
+</tr>
+<tr>
+<td><code>SPRING_DATASOURCE_URL</code></td>
+<td>jdbc:postgresql://postgres:5432/...</td>
+<td>URL BDD par service</td>
+</tr>
+<tr>
+<td><code>RABBITMQ_HOST</code></td>
+<td>rabbitmq</td>
+<td>Broker messages</td>
+</tr>
+<tr>
+<td><code>MAIL_FROM</code></td>
+<td><a href="mailto:noreply@kidsactivities.fr">noreply@kidsactivities.fr</a></td>
+<td>Expéditeur e-mails</td>
+</tr>
+<tr>
+<td><code>MAIL_ADMIN</code></td>
+<td><a href="mailto:admin@kidsactivities.fr">admin@kidsactivities.fr</a></td>
+<td>Destinataire copies admin</td>
+</tr>
+</tbody></table>
+<h2>JWT</h2>
+<ul>
+<li>Header : <code>Authorization: Bearer &lt;token&gt;</code></li>
+<li>Obtenu via <code>POST /api/auth/login</code> ou <code>POST /api/auth/register</code></li>
+<li>Contient le claim <code>role</code> : <code>PARENT</code> ou <code>ADMIN</code></li>
+<li>Expiration configurable dans auth-service (<code>application.yml</code>)</li>
+</ul>
+<h2>Mailpit (développement)</h2>
+<p>Tous les e-mails sont capturés localement :</p>
+<ul>
+<li>Interface web : <a href="http://localhost:8025">http://localhost:8025</a></li>
+<li>Aucun e-mail réel n&#39;est envoyé en dev</li>
+</ul>
+<h2>Frontend</h2>
+<ul>
+<li>Token stocké dans <code>localStorage</code> (clé utilisée par le client API)</li>
+<li>En cas de 401, le token est automatiquement supprimé</li>
+</ul>
+<hr>
+<p><strong>Base URL (gateway) :</strong> <code>http://localhost:8080</code></p>
+<h2>Authentification</h2>
+<h3>Inscription</h3>
+<pre><code class="language-http">POST /api/auth/register
+Content-Type: application/json
+
+{
+  &quot;email&quot;: &quot;nouveau@example.com&quot;,
+  &quot;password&quot;: &quot;motdepasse123&quot;,
+  &quot;firstName&quot;: &quot;Marie&quot;,
+  &quot;lastName&quot;: &quot;Dupont&quot;
+}
+</code></pre>
+<h3>Connexion</h3>
+<pre><code class="language-http">POST /api/auth/login
+Content-Type: application/json
+
+{
+  &quot;email&quot;: &quot;parent@example.com&quot;,
+  &quot;password&quot;: &quot;parent123&quot;
+}
+</code></pre>
+<p>Réponse : <code>{ &quot;token&quot;: &quot;...&quot;, &quot;email&quot;: &quot;...&quot;, &quot;role&quot;: &quot;PARENT&quot; }</code></p>
+<h3>Profil courant</h3>
+<pre><code class="language-http">GET /api/users/me
+Authorization: Bearer &lt;token&gt;
+</code></pre>
+<h2>Activités</h2>
+<table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Route</th>
+<th>Auth</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/activities</code></td>
+<td>Non</td>
+<td>Public (actives)</td>
+</tr>
+<tr>
+<td>GET</td>
+<td><code>/api/activities/{id}</code></td>
+<td>Non</td>
+<td>Public</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/activities</code></td>
+<td>Oui</td>
+<td>ADMIN</td>
+</tr>
+<tr>
+<td>PUT</td>
+<td><code>/api/activities/{id}</code></td>
+<td>Oui</td>
+<td>ADMIN</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/activities/{id}</code></td>
+<td>Oui</td>
+<td>ADMIN</td>
+</tr>
+</tbody></table>
+<h2>Réservations</h2>
+<table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Route</th>
+<th>Auth</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/bookings</code></td>
+<td>Oui</td>
+<td>PARENT (ses réservations)</td>
+</tr>
+<tr>
+<td>POST</td>
+<td><code>/api/bookings</code></td>
+<td>Oui</td>
+<td>PARENT</td>
+</tr>
+<tr>
+<td>DELETE</td>
+<td><code>/api/bookings/{id}</code></td>
+<td>Oui</td>
+<td>PARENT (propre réservation)</td>
+</tr>
+</tbody></table>
+<p>Exemple création :</p>
+<pre><code class="language-http">POST /api/bookings
+Authorization: Bearer &lt;token&gt;
+Content-Type: application/json
+
+{
+  &quot;activityId&quot;: 1,
+  &quot;childName&quot;: &quot;Lucas&quot;,
+  &quot;childAge&quot;: 8
+}
+</code></pre>
+<h2>Administration (BFF Gateway)</h2>
+<table>
+<thead>
+<tr>
+<th>Méthode</th>
+<th>Route</th>
+<th>Auth</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>GET</td>
+<td><code>/api/admin/dashboard</code></td>
+<td>Oui</td>
+<td>ADMIN</td>
+</tr>
+</tbody></table>
+<p>Retourne agrégation : totaux utilisateurs, activités, réservations, dernières réservations.</p>
+<h2>Collection Postman</h2>
+<p><strong>Fichier :</strong> <code>product/postman/Kids-Activities-MVP.postman_collection.json</code></p>
+<h3>Import</h3>
+<ol>
+<li>Ouvrir Postman</li>
+<li><strong>Import</strong> → sélectionner le fichier JSON</li>
+<li>Créer un environnement avec :<ul>
+<li><code>baseUrl</code> = <code>http://localhost:8080</code></li>
+<li><code>token</code> = (rempli après login via script ou manuellement)</li>
+</ul>
+</li>
+</ol>
+<h3>Contenu</h3>
+<p>La collection couvre les parcours principaux :</p>
+<ul>
+<li>Auth (register, login)</li>
+<li>Activités (liste, détail, CRUD admin)</li>
+<li>Réservations (créer, lister, annuler)</li>
+<li>Admin dashboard</li>
+<li>Cas d&#39;erreur (401, 403, 400)</li>
+</ul>
+<h2>Codes HTTP courants</h2>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Situation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>200 / 201</td>
+<td>Succès</td>
+</tr>
+<tr>
+<td>400</td>
+<td>Validation métier (doublon, plus de places, capacité insuffisante)</td>
+</tr>
+<tr>
+<td>401</td>
+<td>Token absent ou invalide</td>
+</tr>
+<tr>
+<td>403</td>
+<td>Rôle insuffisant (ex. PARENT sur route admin)</td>
+</tr>
+<tr>
+<td>404</td>
+<td>Ressource introuvable</td>
+</tr>
+</tbody></table>
+<h2>Swagger (par service, accès direct)</h2>
+<p>En dev local sans Docker, chaque service expose OpenAPI :</p>
+<ul>
+<li>auth-service : <a href="http://localhost:8081/swagger-ui.html">http://localhost:8081/swagger-ui.html</a></li>
+<li>activity-service : <a href="http://localhost:8082/swagger-ui.html">http://localhost:8082/swagger-ui.html</a></li>
+<li>booking-service : <a href="http://localhost:8083/swagger-ui.html">http://localhost:8083/swagger-ui.html</a></li>
+</ul>
+<p>Via gateway, utiliser les routes <code>/api/**</code> documentées ci-dessus.</p>
+<hr>
+
+</body></html>
